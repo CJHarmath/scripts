@@ -1,4 +1,8 @@
-﻿param([parameter(Mandatory=$true)]$script)
+﻿param(
+    [parameter(Mandatory=$true)]
+    $script,
+    [parameter(Mandatory=$true)]
+    $objects)
 
 
 $maxJobs = 10
@@ -6,7 +10,7 @@ $maxJobs = 10
 #$script = { start-process C:\temp\sleep.exe 5000 -Wait -WindowStyle Hidden}
 
 $runningJobs = (get-job -State Running | Measure-Object).Count
-1..100 | % { 
+$objects | % { 
     $runningJobs = (get-job -State Running | Measure-Object).Count
     if ($runningJobs -lt $maxJobs)
     {
