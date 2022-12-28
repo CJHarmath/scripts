@@ -60,20 +60,20 @@ function Compress-7zArchive {
       [Switch] $DeleteSourceFiles,
   
       [Parameter()]
-      [string] $7zExecutablePath,
+      [string] $ExecutablePath,
   
       [Parameter()]
       [switch] $InstallViaChocolatey
     )
   
     # Check if the 7zip executable path was specified
-    if ($null -eq $7zExecutablePath -and -not (Test-Path $7zExecutablePath)) {
+    if ($null -eq $ExecutablePath -and -not (Test-Path $ExecutablePath)) {
       # Search for 7zip in the PATH
       Write-Verbose "Searching 7z path..."
-      $7zExecutable = (Get-Command 7z).Path
+      $ExecutablePath = (Get-Command 7z).Path
   
       # Check if 7zip was not found in the PATH
-      if ($null -eq $7zExecutable) {
+      if ($null -eq $ExecutablePath) {
         # Check known installation locations for 7zip
         $knownLocations = @(
           "C:\ProgramData\chocolatey\bin\7z.exe"
@@ -82,15 +82,15 @@ function Compress-7zArchive {
         )
         foreach ($location in $knownLocations) {
           if (Test-Path $location) {
-            $7zExecutable = $location
-            Write-Verbose "Using path: $7zExecutablePath"
+            $ExecutablePath = $location
+            Write-Verbose "Using path: $ExecutablePath"
             break
           }
         }
       }
   
       # Check if 7zip was still not found
-      if ($null -eq $7zExecutable) {
+      if ($null -eq $ExecutablePath) {
         # Check if the InstallViaChocolatey switch was specified
         $hasChoco = (Get-Command choco.exe)
         if ($hasChoco -and $InstallViaChocolatey) {
@@ -99,7 +99,7 @@ function Compress-7zArchive {
           choco install 7zip -y
           &refreshenv
           # Search for 7zip again in the PATH
-          $7zExecutable = (Get-Command 7z).Path
+          $ExecutablePath = (Get-Command 7z).Path
         }
         else {
           # Throw an error if 7zip was not found and the InstallViaChocolatey
@@ -109,14 +109,14 @@ function Compress-7zArchive {
       }
     }
   
-    # Build the destionation path if not specified
+    # Build the destination path if not specified
     if ($null -eq $Destination -or [System.IO.Directory]::Exists($Path)) {
         $Destination = "{0}\{1}.{2}" -f (Get-Location),(Get-Item $Path).Name, $type
     }
 
     # if destination is a folder, change it to a file
     if ([System.IO.Directory]::Exists($Destination)){
-        $Destination = "{0}\{1}.{2}" -f $Destination,(Get-Item $Path).Name, $type
+        $Destination = [System.IO.Path]::Join($Destination,(Get-Item $Path).Name, $type)
     }
 
     if ($DeleteSourceFiles) {
@@ -126,8 +126,12 @@ function Compress-7zArchive {
     }
   
     try {
-        Write-Verbose "$7zExecutable $7zArguments"
-        & $7zExecutable $7zArguments
+        Write-Verbose "$ExecutablePath $7zArguments"
+        $argList = $7zArguments -split " "
+        $proc = Start-Process -FilePath $ExecutablePath -ArgumentList $argList -WorkingDirectory $(Get-Location) -PassThru -Wait -NoNewWindow
+        if ($proc.ExitCode -ge 1) {
+            Write-Error "7z failed"
+        }
     } catch {
         Write-Error "Something failed while executing 7z"
         Write-Error -ErrorRecord $_
