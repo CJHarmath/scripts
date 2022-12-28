@@ -110,10 +110,11 @@ function Compress-7zArchive {
 
     }
         
-    $7zCommand = "a -t$Type -mx=$CompressionLevel `"$Destination`" `"$Path`""
+    $7zArguments = "a -t$Type -mx=$CompressionLevel `"$Destination`" `"$Path`""
   
     try {
-        & $7zExecutable $7zCommand
+        Write-Verbose "$7zExecutable $7zArguments"
+        & $7zExecutable $7zArguments
     } catch {
         Write-Error "Something failed while executing 7z"
         Write-Error -ErrorRecord $_
