@@ -19,6 +19,9 @@ function Compress-7zArchive {
     .PARAMETER Type
     The type of the archive. Can be either 7z or zip.
     By default it's zip for maximum compatibility.
+    
+    .PARAMETER DeleteSourceFiles
+    A switch for wheter to delete the source files after compression. i.e.: to move to archive.
 
     .PARAMETER ExecutablePath
     The path to the 7zip executable. If not specified, the function will
@@ -52,25 +55,25 @@ function Compress-7zArchive {
       [Parameter()]
       [ValidateSet("zip", "7z")]
       $Type = "zip",
+
+      [Parameter()]
+      [Switch] $DeleteSourceFiles,
   
       [Parameter()]
-      [string] $ExecutablePath,
+      [string] $7zExecutablePath,
   
       [Parameter()]
       [switch] $InstallViaChocolatey
     )
   
     # Check if the 7zip executable path was specified
-    if ($ExecutablePath -and (Test-Path $ExecutablePath)) {
-      # Use the specified executable path
-      $7zExecutable = $ExecutablePath
-    }
-    else {
+    if ($null -eq $7zExecutablePath -and -not (Test-Path $7zExecutablePath)) {
       # Search for 7zip in the PATH
-      $7zExecutable = (Get-Command 7z.exe).Path
+      Write-Verbose "Searching 7z path..."
+      $7zExecutable = (Get-Command 7z).Path
   
       # Check if 7zip was not found in the PATH
-      if (-not $7zExecutable) {
+      if ($null -eq $7zExecutable) {
         # Check known installation locations for 7zip
         $knownLocations = @(
           "C:\ProgramData\chocolatey\bin\7z.exe"
@@ -80,21 +83,23 @@ function Compress-7zArchive {
         foreach ($location in $knownLocations) {
           if (Test-Path $location) {
             $7zExecutable = $location
+            Write-Verbose "Using path: $7zExecutablePath"
             break
           }
         }
       }
   
       # Check if 7zip was still not found
-      if (-not $7zExecutable) {
+      if ($null -eq $7zExecutable) {
         # Check if the InstallViaChocolatey switch was specified
         $hasChoco = (Get-Command choco.exe)
         if ($hasChoco -and $InstallViaChocolatey) {
           # Install 7zip via chocolatey.org
+          Write-Verbose "attempting to install 7zip via chocolatey"
           choco install 7zip -y
           &refreshenv
           # Search for 7zip again in the PATH
-          $7zExecutable = (Get-Command 7z.exe).Path
+          $7zExecutable = (Get-Command 7z).Path
         }
         else {
           # Throw an error if 7zip was not found and the InstallViaChocolatey
@@ -105,12 +110,20 @@ function Compress-7zArchive {
     }
   
     # Build the destionation path if not specified
-    if ($null -eq $Destination){
+    if ($null -eq $Destination -or [System.IO.Directory]::Exists($Path)) {
         $Destination = "{0}\{1}.{2}" -f (Get-Location),(Get-Item $Path).Name, $type
-
     }
-        
-    $7zArguments = "a -t$Type -mx=$CompressionLevel `"$Destination`" `"$Path`""
+
+    # if destination is a folder, change it to a file
+    if ([System.IO.Directory]::Exists($Destination)){
+        $Destination = "{0}\{1}.{2}" -f $Destination,(Get-Item $Path).Name, $type
+    }
+
+    if ($DeleteSourceFiles) {
+        $7zArguments = "a -t$Type -mx=$CompressionLevel -sdel `"$Destination`" `"$Path`""
+    } else {
+        $7zArguments = "a -t$Type -mx=$CompressionLevel `"$Destination`" `"$Path`""
+    }
   
     try {
         Write-Verbose "$7zExecutable $7zArguments"
