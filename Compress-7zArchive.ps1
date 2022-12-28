@@ -115,12 +115,12 @@ function Compress-7zArchive {
   
     # Build the destination path if not specified
     if ($null -eq $Destination -or [System.IO.Directory]::Exists($Path)) {
-        $Destination = "{0}\{1}.{2}" -f (Get-Location),(Get-Item $Path).Name, $type
+        $Destination = [System.Path]::Combine((Get-Location),(Get-Item $Path).Name, $type)
     }
 
     # if destination is a folder, change it to a file
     if ([System.IO.Directory]::Exists($Destination)){
-        $Destination = [System.IO.Path]::Join($Destination,(Get-Item $Path).Name, $type)
+        $Destination = [System.IO.Path]::Combine($Destination,(Get-Item $Path).Name, $type)
     }
 
     if ($DeleteSourceFiles) {
