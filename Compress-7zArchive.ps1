@@ -65,7 +65,11 @@ function Compress-7zArchive {
       [Parameter()]
       [switch] $InstallViaChocolatey
     )
-  
+    
+    if (-not (Test-Path $Path)){
+        throw "$Path does not exists!"
+    }
+
     # Check if the 7zip executable path was specified
     if ($null -eq $ExecutablePath -and -not (Test-Path $ExecutablePath)) {
       # Search for 7zip in the PATH
